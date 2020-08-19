@@ -4,15 +4,9 @@ if (!isDetaRuntime()){
     require('dotenv').config();
 }
 
+const { appOctokit } = require('./client.js');
+
 const express = require('express');
-const { GithubAPIClient } = require('./client.js');
-const { readFileSync } = require('fs');
-
-const PRIVATE_KEY_PATH = process.env.PRIVATE_KEY_PATH;
-const GITHUB_APP_ID = process.env.GITHUB_APP_ID;
-
-// github api client
-const githubClient = new GithubAPIClient(GITHUB_APP_ID, readFileSync(PRIVATE_KEY_PATH));
 
 // express app
 const app = express();
@@ -30,5 +24,3 @@ if (process.env.DETA_RUNTIME === "true"){
         console.log('Local server, listening at port:9000')
     });
 }
-
-

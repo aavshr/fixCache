@@ -1,35 +1,46 @@
-const { App } = require("@octokit/app");
-const { request } = require("@octokit/request");
-const { readFile, writeFile } = require("fs");
-const { PassThrough } = require("stream");
+const { Octokit } = require("@octokit/rest");
+const { createAppAuth } = require("@octokit/auth-app");
+const { readFileSync } = require('fs');
+const { retry } = require("@octokit/plugin-retry");
+const { throttling } = require("@octokit/plugin-throttling");
 
-const JWT_TOKEN_PATH = process.env.JWT_TOKEN_PATH
+const PRIVATE_KEY_PATH = process.env.PRIVATE_KEY_PATH;
+const GITHUB_APP_ID = process.env.GITHUB_APP_ID;
 
-class GithubAPIClient {
-    #jwt; 
+const readPrivateKey = () => {
+    return readFileSync(PRIVATE_KEY_PATH);
+};
 
-    constructor(appID, privateKey){
-        const app = new App({id: appID, privateKey:privateKey});
+const AppOctokit = Octokit.plugin(retry, throttling);
+const appOctokit = new AppOctokit({
+    authStrategy: createAppAuth,
+    auth: {
+        id: GITHUB_APP_ID,
+        privateKey: readPrivateKey(),     
+    },
+    userAgent: 'fixCache v0.0.1',
+    throttle: {
+        onRateLimit: (retryAfter, options) => {
+            appOctokit.log.warn(
+                `Request quota exhausted for request ${options.method} ${options.url}`,
+            );
 
-        // load jwt token from local file if stored
-        readFile(JWT_TOKEN_PATH, (err, data) => {
-            if (err){
-                // get new token if any error
-                this.#jwt = app.getSignedJsonWebToken();
-                // save to path
-                writeFile(JWT_TOKEN_PATH, this.#jwt, (err) => {return});
-            } else {
-                this.#jwt = data.toString();
+            if (options.request.retryCount == 0){
+                appOctokit.log.info(`Retrying after ${retryAfter} seconds!`);
+                return true;
             }
-        })
-    }
+        },
+        onAbuseLimit: (retryAfter, options) => {
+        // does not retry, only logs a warning
+            myOctokit.log.warn(
+                `Abuse detected for request ${options.method} ${options.url}`
+            );
+        },
+    },
+    retry: {
+        // do not retry on 429 (too many requests) response from api
+        doNotRetry: ["429"],
+    },
+});
 
-    authHeaders(){
-        return {
-            authorization: `Bearer ${this.#jwt}`,
-            accept: "application/vnd.github.machine-man-preview+json",
-        } 
-    }
-}
-
-module.exports = { GithubAPIClient };
+module.exports = { appOctokit };
