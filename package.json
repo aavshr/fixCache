@@ -1,0 +1,26 @@
+{
+  "name": "fix-cache",
+  "version": "0.0.1",
+  "description": "predict bug files from cache history",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aavshr/fixCache.git"
+  },
+  "author": "Aavash Shrestha",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aavshr/fixCache/issues"
+  },
+  "homepage": "https://github.com/aavshr/fixCache#readme",
+  "dependencies": {
+    "@octokit/app": "^4.2.1",
+    "@octokit/request": "^5.4.7",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1"
+  }
+}
