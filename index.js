@@ -1,19 +1,15 @@
-const { isDetaRuntime } = require('./util.js');
+const express = require('express');
 
-// load .env if not running on DETA
-if (!isDetaRuntime()){
-    require('dotenv').config();
-}
-
-
+const { isDetaRuntime, verifySignature } = require('./util.js');
 const { appOctokit } = require('./client.js');
 const { repoDB, putItems } = require('./base.js');
 
-const express = require('express');
-
 // express app
 const app = express();
-app.use(express.json());
+
+// middlewares
+app.use(express.json()); // parse body as application/json
+app.use(verifySignature); // verify signature with webhook secret
 
 // webhook handler
 app.post('/', async (req, res) => {
@@ -27,7 +23,7 @@ app.post('/', async (req, res) => {
     if (req.body.action === "created"){
         repos = req.body.repositories;
     } else if(req.body.action === "added"){
-        repos = req.body.repositoreis_added;
+        repos = req.body.repositories_added;
     // if 'deleted' or 'removed' action
     } else {
         res.send('ok');
