@@ -3,11 +3,12 @@ const { cacheDB, putItems } = require('./base.js');
 class FixCache{
     #fileCache; // the file cache of probable bug files
     #cacheSize; // cache size
+    #fixKeywords; // fix key words
 
-    constructor(cacheSize){
-        this.#repoMeta = repoDB;
+    constructor(cacheSize, fixKeywords){
         this.#fileCache = cacheDB;
-        this.#cacheSize = cacheSize;
+        this.cacheSize = cacheSize;
+        this.#fixKeywords = fixKeywords;
     };
 
     /* initializes the file cache
@@ -88,6 +89,15 @@ class FixCache{
         }
         await putItems(this.#fileCache, newCache);
         return Promise.resolve(null);
+    }
+
+    isFixMessage(message){
+        this.#fixKeywords.foreach(keyword => {
+            if (message.contains(keyword)){
+                return true
+            }
+        })
+        return false; 
     }
 }
 

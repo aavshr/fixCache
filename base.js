@@ -17,7 +17,7 @@ const repoDB = deta.Base('repos');
 cachedb schema:
 {
     "key": str, // randomly generated
-    "repo": str, // repo_id, foreign ref key in repoDB
+    "repo": int, // repo_id, foreign ref key in repoDB
     "file": str, // file name
     "last_hit": int // timestamp of last cache hit in epochs,
     "number_of_hits": int // number of cache hits
