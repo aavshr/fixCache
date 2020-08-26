@@ -9,6 +9,7 @@ repoDB schema:
     "key": str, // repo id 
     "name": str, // repo name
     "owner": str, // repo owner
+    "installation_id": int // installation id
 }
 */
 const repoDB = deta.Base('repos');

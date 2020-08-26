@@ -1,15 +1,14 @@
 const { FixCache } = require('./fix-cache');
 const { repoDB, putItems } = require('./base');
-const { appOctokit } = require('./client');
+const { newClient } = require('./client');
 
 // label name for labeling pull requests
 const FIX_CACHE_LABEL_NAME = 'Fix Cache Warning :warning:'; 
 // label color
-const FIX_CACHE_LABEL_COLOR = 'e3ff00';
+const FIX_CACHE_LABEL_COLOR = 'e00d0d';
 
 class EventHandler{
     #fixCache;
-    #githubClient;
     #handlers;
     #trackedBranch;
     #prLabel;
@@ -19,7 +18,6 @@ class EventHandler{
             throw Error(`Cache size is not a number ${cacheSize}`)
         }
         this.#fixCache = new FixCache(config.cacheSize, config.fixKeywords);
-        this.#githubClient = appOctokit;
         this.#trackedBranch = config.trackedBranch;
 
         // label info
@@ -36,40 +34,42 @@ class EventHandler{
 
     }
 
-    async handleEvent(event){
-        if (req.body.installation){
-            return installationEventHanlder(event);
+    handleEvent(event){
+        if (event.body.installation){
+            return this.installationEventHandler(event);
         }
         return this.#handlers[event.type](event)
     }
 
-    async installationEventHandler(event){
+    installationEventHandler(event){
         var repos = [];
 
-        if (req.body.action === "created"){
-            repos = req.body.repositories;
-        } else if(req.body.action === "added"){
-            repos = req.body.repositories_added;
+        if (event.body.action === "created"){
+            repos = event.body.repositories;
+        } else if(event.body.action === "added"){
+            repos = event.body.repositories_added;
         // if 'deleted' or 'removed' action
         } else {
             return Promise.resolve(null);
         }
 
-        return this.setupRepos(repos);
+        return this.setupRepos(repos, event.body.installation.id);
     } 
 
-    async setupRepos(repos){
+    async setupRepos(repos, installationID){
         var repoItems = [];
+        const client = newClient(installationID);
         try{
             repos.forEach(async repo => {
                 const owner = repo.full_name.split('/')[0] // full_name = owner/repo-name
                 repoItems.push({
-                    key: `${repoID}`, 
+                    key: `${repo.id}`, 
                     name: repo.name,
                     owner: owner,
+                    installation_id: installationID,
                 });
                 // create a label in the repo for FixCache
-                await this.#githubClient.issues.createLabel({
+                await client.issues.createLabel({
                     owner: owner,
                     repo: repo.name,
                     name: this.#prLabel.name, 
@@ -110,7 +110,7 @@ class EventHandler{
     }
     */
 
-    async pushEventHanlder(event) {
+    pushEventHanlder(event) {
         // check if push event is in the tracked branch 
         if (event.payload.ref !== `refs/heads/${this.#trackedBranch}`){
             return Promise.resolve(null);
@@ -146,7 +146,8 @@ class EventHandler{
 
             // get pull request files 
             // TODO: handle pagination
-            const pullRequestFiles = await this.#githubClient.pulls.listFiles({
+            const client = newClient(repoMeta.installation_id);
+            const pullRequestFiles = await client.listFiles({
                 owner: repoMeta.owner,
                 repo: repoMeta.name,
                 pull_number: event.payload.number,
@@ -169,7 +170,7 @@ class EventHandler{
 
             if (cacheHit){
                 // update PR body with fix cache info
-                await this.#githubClient.pulls.update({
+                await client.update({
                     owner: repooMeta.owner, 
                     repo: repoMeta.name,
                     pull_number: event.payload.number,
@@ -177,7 +178,7 @@ class EventHandler{
                 });
 
                 // add the fix cache label to the pr
-                await this.#githubClient.issues.addLabels({
+                await client.issues.addLabels({
                     owner: repoMeta.owner,
                     repo: repoMeta.name,
                     issue_number: event.payload.number,
