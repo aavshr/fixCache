@@ -28,32 +28,33 @@ class EventHandler{
 
         // maps events to handlers 
         this.#handlers = {
-            "PushEvent": this.pushEventHandler,
-            "PullRequestEvent": this.pullRequestEventHandler,
+            "installation": this.installationEventHandler.bind(this),
+            "push": this.pushEventHandler.bind(this),
+            "pull_request": this.pullRequestEventHandler.bind(this),
         };
-
     }
 
     handleEvent(event){
-        if (event.body.installation){
-            return this.installationEventHandler(event);
+        const handler = this.#handlers[event.get('X-GitHub-Event')];
+        if (handler){
+            return handler(event.body);
         }
-        return this.#handlers[event.type](event)
+        return Promise.resolve(null);
     }
 
     installationEventHandler(event){
         var repos = [];
 
-        if (event.body.action === "created"){
-            repos = event.body.repositories;
-        } else if(event.body.action === "added"){
-            repos = event.body.repositories_added;
+        if (event.action === "created"){
+            repos = event.repositories;
+        } else if(event.action === "added"){
+            repos = event.repositories_added;
         // if 'deleted' or 'removed' action
         } else {
             return Promise.resolve(null);
         }
 
-        return this.setupRepos(repos, event.body.installation.id);
+        return this.setupRepos(repos, event.installation.id);
     } 
 
     async setupRepos(repos, installationID){
@@ -110,36 +111,33 @@ class EventHandler{
     }
     */
 
-    pushEventHanlder(event) {
+    pushEventHandler(event) {
         // check if push event is in the tracked branch 
-        if (event.payload.ref !== `refs/heads/${this.#trackedBranch}`){
+        if (event.ref !== `refs/heads/${this.#trackedBranch}`){
             return Promise.resolve(null);
         }
 
-        var files = [];
+        var files;
 
-        event.payload.commits.forEach(commit => {
+        event.commits.forEach(commit => {
            if (this.#fixCache.isFixMessage(commit.message)){
                 // commit.changes = temporal, spatial and changed-entity locality
                 // commit.added = new-entity locality
-                files = files.concat(commit.changes, commit.added);
+                files = commit.modified.concat(commit.added);
            } 
         })
-        return this.#fixCache.updateCache(event.repo.id, files);
+        return this.#fixCache.updateCache(event.repository.id, files);
     } 
 
-    async pullRequestEventHanlder(event){
+    async pullRequestEventHandler(event){
         // check if pr is opened to be merged to the right branch
-        if (event.payload.action != "opened" || event.payload.pull_request.base.ref !== this.#trackedBranch){
+        if (event.action != "opened" || event.pull_request.base.ref !== this.#trackedBranch){
             return Promise.resolve(null);
         }
 
-        // pull request body to update it later
-        var prBody = event.payload.pull_request.body;
-
         try{
             // get repo metadata
-            const repoMeta = await repoDB.get(event.repo.id);      
+            const repoMeta = await repoDB.get(`${event.repository.id}`);      
             if (!repoMeta){
                 return Promise.reject("repo meta data not found in database") 
             }
@@ -147,45 +145,42 @@ class EventHandler{
             // get pull request files 
             // TODO: handle pagination
             const client = newClient(repoMeta.installation_id);
-            const pullRequestFiles = await client.listFiles({
+            const pullRequestFiles = await client.pulls.listFiles({
                 owner: repoMeta.owner,
                 repo: repoMeta.name,
-                pull_number: event.payload.number,
+                pull_number: event.number,
             })
 
             // get current cache
-            const currentCache = await this.#fixCache.getCurrentCache(event.repo.id);
+            const currentCache = await this.#fixCache.getCurrentCache(event.repository.id);
 
             // update pull request with info about files updated in the PR 
             // if hits in the fix-cache 
             // TODO: add a label
             var cacheHit = false;
-            prBody += "Following files updated in the PR are present in the fix-cache:"
-            pullRequestFiles.forEach(file => {
+            var commentBody = "Following files updated in the PR are present in the fix-cache:";
+            pullRequestFiles.data.forEach(file => {
                 if (currentCache[file.filename]){
                     cacheHit = true;
-                    prBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
+                    commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
                 }
             })
 
             if (cacheHit){
-                // update PR body with fix cache info
-                await client.update({
-                    owner: repooMeta.owner, 
+                // add an issue comment with fix cache info
+                client.issues.createComment({
+                    owner: repoMeta.owner, 
                     repo: repoMeta.name,
-                    pull_number: event.payload.number,
-                    body: prBody, 
+                    issue_number: event.number,
+                    body: commentBody, 
                 });
 
                 // add the fix cache label to the pr
-                await client.issues.addLabels({
+                client.issues.addLabels({
                     owner: repoMeta.owner,
                     repo: repoMeta.name,
-                    issue_number: event.payload.number,
-                    labels: {
-                        // git recommends an object with labels key
-                        labels: [this.#prLabel.name],
-                    }
+                    issue_number: event.number,
+                    labels: [this.#prLabel.name],
                 }) 
             }
             return Promise.resolve(null);
