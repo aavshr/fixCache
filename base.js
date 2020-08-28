@@ -9,8 +9,7 @@ repoDB schema:
     "key": str, // repo id 
     "name": str, // repo name
     "owner": str, // repo owner
-    "tracked-branch": str, //main branch
-    "fix-commit-convention": str, // (TBD) 
+    "installation_id": int // installation id
 }
 */
 const repoDB = deta.Base('repos');
@@ -19,10 +18,10 @@ const repoDB = deta.Base('repos');
 cachedb schema:
 {
     "key": str, // randomly generated
-    "repo": str, // repo_id, foreign ref key in repoDB
+    "repo": int, // repo_id, foreign ref key in repoDB
     "file": str, // file name
-    "last-hit": str // timestamp of last cache hit in rfc3339 format UTC,
-    "number-of-hits": int // number of cache hits
+    "last_hit": int // timestamp of last cache hit in epochs,
+    "number_of_hits": int // number of cache hits
 }
 */
 const cacheDB = deta.Base('cache');

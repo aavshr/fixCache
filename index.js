@@ -1,47 +1,34 @@
 const express = require('express');
 
-const { isDetaRuntime, verifySignature } = require('./util.js');
-const { appOctokit } = require('./client.js');
-const { repoDB, putItems } = require('./base.js');
+const { isDetaRuntime, verifySignature } = require('./util');
+const { EventHandler } = require('./event-handler');
+
+// configuration
+const config = {
+    // size of fix cache cache
+    cacheSize: process.env.CACHE_SIZE,
+    // size of commit history to check on installation
+    historySize: process.env.HISTORY_SIZE, 
+    // name of branch to track fix merges on
+    trackedBranch: process.env.TRACKED_BRANCH,
+    // keywords for fix commit messages
+    fixKeywords: process.env.FIX_KEY_WORDS.split(','),
+};
 
 // express app
 const app = express();
+
+// webhook events handler
+const eventHandler = new EventHandler(config);
 
 // middlewares
 app.use(express.json()); // parse body as application/json
 app.use(verifySignature); // verify signature with webhook secret
 
-// webhook handler
+// webhook main handler
 app.post('/', async (req, res) => {
-    if (!req.body.installation){
-        res.send('ok');
-        return;
-    }
-
-    var repos = [];
-
-    if (req.body.action === "created"){
-        repos = req.body.repositories;
-    } else if(req.body.action === "added"){
-        repos = req.body.repositories_added;
-    // if 'deleted' or 'removed' action
-    } else {
-        res.send('ok');
-        return;
-    }
-
-    var repoItems = [];
-    repos.forEach(repo => {
-        repoItems.push({
-        key: `${repo.id}`, 
-        name: repo.name,
-        owner: repo.full_name.split('/')[0] // full_name = owner/repo-name
-        });
-    })
-    
-    await putItems(repoDB, repoItems);
-    res.send('ok');
-    return;
+    await eventHandler.handleEvent(req);
+    return res.send('ok');
 });
 
 if (isDetaRuntime()){
