@@ -163,29 +163,29 @@ class EventHandler{
                 return Promise.reject("repo meta data not found in database") 
             }
 
+            // get current cache
+            const currentCache = await this.#fixCache.getCurrentCache(event.repository.id);
+            var cacheHit = false;
+
             // get pull request files 
-            // TODO: handle pagination
+            // add comment to pull request with info about files updated in the PR
+            // if hits in the fix-cache
             const client = newClient(repoMeta.installation_id);
-            const pullRequestFiles = await client.pulls.listFiles({
+            var commentBody = "Following files updated in the PR are present in the fix-cache:";
+            
+            // paginated
+            client.paginate("GET /repos/:owner/:repo/pulls/:pull_number/files",{
                 owner: repoMeta.owner,
                 repo: repoMeta.name,
                 pull_number: event.number,
-            })
-
-            // get current cache
-            const currentCache = await this.#fixCache.getCurrentCache(event.repository.id);
-
-            // update pull request with info about files updated in the PR 
-            // if hits in the fix-cache 
-            // TODO: add a label
-            var cacheHit = false;
-            var commentBody = "Following files updated in the PR are present in the fix-cache:";
-            pullRequestFiles.data.forEach(file => {
-                if (currentCache[file.filename]){
-                    cacheHit = true;
-                    commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
-                }
-            })
+            }).then((pullRequestFiles)=> {
+                pullRequestFiles.data.forEach(file => {
+                    if (currentCache[file.filename]){
+                        cacheHit = true;
+                        commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
+                    }
+                });
+            });
 
             if (cacheHit){
                 // add an issue comment with fix cache info
