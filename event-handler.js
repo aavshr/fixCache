@@ -12,13 +12,15 @@ class EventHandler{
     #handlers;
     #trackedBranch;
     #prLabel;
+    #skipPaths;
 
     constructor(config){
         if (isNaN(config.cacheSize)){
-            throw Error(`Cache size is not a number ${cacheSize}`)
+            throw Error(`cache size is not a number ${cacheSize}`)
         }
         this.#fixCache = new FixCache(config.cacheSize, config.fixKeywords);
         this.#trackedBranch = config.trackedBranch;
+        this.#skipPaths = config.skipPaths;
 
         // label info
         this.#prLabel = {
@@ -111,19 +113,38 @@ class EventHandler{
     }
     */
 
+    // checks if path should be skipped
+    isSkipPath(path) {
+        this.#skipPaths.forEach(skipPath => {
+            if (path.includes(skipPath)){
+                return true
+            }
+        })
+        return false
+    }
+
     pushEventHandler(event) {
         // check if push event is in the tracked branch 
         if (event.ref !== `refs/heads/${this.#trackedBranch}`){
             return Promise.resolve(null);
         }
 
-        var files;
+        var files = [];
 
         event.commits.forEach(commit => {
-           if (this.#fixCache.isFixMessage(commit.message)){
-                // commit.changes = temporal, spatial and changed-entity locality
+           if (this.#fixCache.isFixMessage(commit.message) && !this.isSkipPath()){
+                // commit.modified= temporal, spatial and changed-entity locality
                 // commit.added = new-entity locality
-                files = commit.modified.concat(commit.added);
+                commit.modified.forEach(file => {
+                    if (!this.isSkipPath(file)){
+                        files.push(file);
+                    }
+                })
+                commit.added.forEach(file => {
+                    if (!this.isSkipPath(file)){
+                        files.push(file);
+                    }
+                })
            } 
         })
         return this.#fixCache.updateCache(event.repository.id, files);

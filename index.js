@@ -13,6 +13,8 @@ const config = {
     trackedBranch: process.env.TRACKED_BRANCH,
     // keywords for fix commit messages
     fixKeywords: process.env.FIX_KEY_WORDS.split(','),
+    // paths to skip in the cache
+    skipPaths: process.env.SKIP_PATHS.split(','),
 };
 
 // express app
