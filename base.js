@@ -27,11 +27,25 @@ cachedb schema:
 const cacheDB = deta.Base('cache');
 
 const putItems = async (db, items) => {
+    const l = items.length;
     if (items.length <= 25) {
         return db.putMany(items);
     }
-    // for now
-    throw Error('more than 25 items');
+    // putMany op supports only 25 items max 
+    // send in batches of 25 items if more than 25 items 
+    let start = 0, end = 0;
+    while(end != l){
+        end += 25;
+        if (end > l){
+            end = l;
+        }
+        try {
+            db.putMany(items.slice(start, end));
+        } catch(err){
+            return Promise.reject(err);
+        }
+        start = end;
+    }
 }
 
 module.exports = { repoDB, cacheDB, putItems };
