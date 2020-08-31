@@ -3,16 +3,25 @@ const { repoDB, putItems } = require('./base');
 const { newClient } = require('./client');
 
 // label name for labeling pull requests
-const FIX_CACHE_LABEL_NAME = 'Fix Cache Warning :warning:'; 
+const FIX_CACHE_LABEL_NAME = 'Fix Cache'; 
 // label color
 const FIX_CACHE_LABEL_COLOR = 'e00d0d';
 
 class EventHandler{
+    // file cache
     #fixCache;
-    #handlers;
+
+    // config
+    #cacheSize;
+    #historySize;
     #trackedBranch;
-    #prLabel;
     #skipPaths;
+
+    // handler functions
+    #handlers;
+
+    // pull request label
+    #prLabel;
 
     constructor(config){
         if (isNaN(config.cacheSize)){
@@ -21,6 +30,8 @@ class EventHandler{
         this.#fixCache = new FixCache(config.cacheSize, config.fixKeywords);
         this.#trackedBranch = config.trackedBranch;
         this.#skipPaths = config.skipPaths;
+        this.#cacheSize = config.cacheSize;
+        this.#historySize = config.historySize;
 
         // label info
         this.#prLabel = {
@@ -87,32 +98,6 @@ class EventHandler{
         return Promise.resolve(null);
     }
 
-    /*
-    // initializes cache with files based on previous fix commits
-    // if no previous fix commits present, then initializes
-    // cache with largest files upto CACHE_SIZE
-    async initCache(repoID){
-        // TODO: if no fix history 
-        // get largest files (but how do we know if largest files are actually code files?)
-        
-        const repoMeta = await repoDB.get(repoID);
-        if (!repoMeta){
-            return Promise.resolve(null);
-        }
-        //   TODO: should not list all commits
-        //   either list commits since a date or tag
-        //   should be configurable
-        
-        const commits = await this.githubClient.repos.listCommits({
-           owner: repoMeta.owner,  
-           repo: repoMeta.name,
-        }) 
-        // TODO: handle commits
-        // for each commit with a fix message
-        // get commit to get the file name
-    }
-    */
-
     // checks if path should be skipped
     isSkipPath(path) {
         this.#skipPaths.forEach(skipPath => {
@@ -123,16 +108,10 @@ class EventHandler{
         return false
     }
 
-    pushEventHandler(event) {
-        // check if push event is in the tracked branch 
-        if (event.ref !== `refs/heads/${this.#trackedBranch}`){
-            return Promise.resolve(null);
-        }
-
+   // get entities to push from a commit
+    getEntitiesToPush(commit){
         var files = [];
-
-        event.commits.forEach(commit => {
-           if (this.#fixCache.isFixMessage(commit.message) && !this.isSkipPath()){
+        if (this.#fixCache.isFixMessage(commit.message)){
                 // commit.modified= temporal, spatial and changed-entity locality
                 // commit.added = new-entity locality
                 commit.modified.forEach(file => {
@@ -145,7 +124,78 @@ class EventHandler{
                         files.push(file);
                     }
                 })
-           } 
+        } 
+        return files;
+    } 
+
+    // substracts historySize from current date
+    // returns date in iso 8601 format
+    dateFromHistorySize(historySize){
+        var now = new Date();
+        now.setDate(now.getDate() - historySize)
+        return now.toISOString();
+    }
+
+    // initializes cache with files based on previous fix commits
+
+    // TODO: if no previous fix commits present, then initializes
+    //       cache with largest files upto CACHE_SIZE
+    // but should I do this?
+    async initCache(repoID){
+        //TODO: if no fix history 
+        // get largest files (but how do we know if largest files are actually code files?)
+        const repoMeta = await repoDB.get(repoID);
+        if (!repoMeta){
+            return Promise.resolve(null);
+        }
+
+        // list commits since date based on history size 
+        const client = newClient(repoMeta.installation_id);
+        var commitRefs = [];
+        client.paginate("GET /repos/:owner/:repo/commits", {
+           owner: repoMeta.owner,  
+           repo: repoMeta.name,
+           sha: this.#trackedBranch,
+           since: this.dateFromHistorySize(this.#historySize), 
+        }).then(commits => {
+            commits.data.forEach(commit => {
+                if (this.#fixCache.isFixMessage(commit.commit.message)){
+                    commitRefs.push(commit.commit.sha);
+                }
+            })
+        }).catch(err => {
+            return Promise.reject(err);
+        });
+
+        // get files changed in commits
+        var files = [];
+        commitRefs.forEach(commitRef => {
+            const commit = client.repos.getCommit({
+                owner: repoMeta.owner,
+                repo: repoMeta.name,
+                ref: commitRef,
+            }); 
+            commit.files.forEach(file => {
+                // do nothing if file was deleted or is a skip path 
+                if (this.isSkipPath(file.filename) || file.status === "deleted"){
+                    return
+                }
+                files.push(file.filename); 
+                // if status is added or changed
+            })
+        });
+        return this.#fixCache.updateCache(repoMeta.id, files);
+    }
+
+    pushEventHandler(event) {
+        // check if push event is in the tracked branch 
+        if (event.ref !== `refs/heads/${this.#trackedBranch}`){
+            return Promise.resolve(null);
+        }
+
+        var files = [];
+        event.commits.forEach(commit => {
+            files = files.concat(this.getEntitiesToPush(commit));  
         })
         return this.#fixCache.updateCache(event.repository.id, files);
     } 

@@ -83,10 +83,10 @@ class FixCache{
             });
             try {
                 await putItems(this.#fileCache, Object.values(newCache));
+                return Promise.resolve(null);
             } catch(err){
                 return Promise.reject(err);
             }
-            return Promise.resolve(null);
         } 
 
         // sort cache by decreasing order by date of last hit 
