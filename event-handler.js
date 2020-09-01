@@ -1,6 +1,7 @@
 const { FixCache } = require('./fix-cache');
 const { repoDB, putItems } = require('./base');
 const { newClient } = require('./client');
+const { createAppAuth } = require('@octokit/auth-app');
 
 // label name for labeling pull requests
 const FIX_CACHE_LABEL_NAME = 'Fix Cache'; 
@@ -11,8 +12,6 @@ class EventHandler{
     // file cache
     #fixCache;
 
-    // config
-    #cacheSize;
     #historySize;
     #trackedBranch;
     #skipPaths;
@@ -25,12 +24,14 @@ class EventHandler{
 
     constructor(config){
         if (isNaN(config.cacheSize)){
-            throw Error(`cache size is not a number ${cacheSize}`)
+            throw Error(`cache size is not a number ${config.cacheSize}`)
+        }
+        if (isNaN(config.historySize)){
+            throw Error(`history size is not a number ${config.historySize}`)
         }
         this.#fixCache = new FixCache(config.cacheSize, config.fixKeywords);
         this.#trackedBranch = config.trackedBranch;
         this.#skipPaths = config.skipPaths;
-        this.#cacheSize = config.cacheSize;
         this.#historySize = config.historySize;
 
         // label info
@@ -52,7 +53,6 @@ class EventHandler{
         if (handler){
             return handler(event.body);
         }
-        return Promise.resolve(null);
     }
 
     installationEventHandler(event){
@@ -66,7 +66,6 @@ class EventHandler{
         } else {
             return Promise.resolve(null);
         }
-
         return this.setupRepos(repos, event.installation.id);
     } 
 
@@ -76,26 +75,28 @@ class EventHandler{
         try{
             repos.forEach(async repo => {
                 const owner = repo.full_name.split('/')[0] // full_name = owner/repo-name
-                repoItems.push({
+                const repoMeta = {
                     key: `${repo.id}`, 
                     name: repo.name,
                     owner: owner,
                     installation_id: installationID,
-                });
+                };
+                repoItems.push(repoMeta);
                 // create a label in the repo for FixCache
-                await client.issues.createLabel({
+                client.issues.createLabel({
                     owner: owner,
                     repo: repo.name,
                     name: this.#prLabel.name, 
                     color: this.#prLabel.color,
                 })
+
+                this.initCache(repoMeta);
             });
             // add repo meta data information about the repos
             await putItems(repoDB, repoItems);
         } catch(err){
             return Promise.reject(err);
         }
-        return Promise.resolve(null);
     }
 
     // checks if path should be skipped
@@ -108,8 +109,8 @@ class EventHandler{
         return false
     }
 
-   // get entities to push from a commit
-    getEntitiesToPush(commit){
+   // get files from a commit object
+    getFilesFromCommit(commit){
         var files = [];
         if (this.#fixCache.isFixMessage(commit.message)){
                 // commit.modified= temporal, spatial and changed-entity locality
@@ -131,60 +132,67 @@ class EventHandler{
     // substracts historySize from current date
     // returns date in iso 8601 format
     dateFromHistorySize(historySize){
-        var now = new Date();
-        now.setDate(now.getDate() - historySize)
-        return now.toISOString();
+        var since = new Date();
+        since.setDate(since.getDate() - historySize)
+        return since.toISOString();
     }
 
-    // initializes cache with files based on previous fix commits
-
-    // TODO: if no previous fix commits present, then initializes
-    //       cache with largest files upto CACHE_SIZE
-    // but should I do this?
-    async initCache(repoID){
-        //TODO: if no fix history 
-        // get largest files (but how do we know if largest files are actually code files?)
-        const repoMeta = await repoDB.get(repoID);
-        if (!repoMeta){
-            return Promise.resolve(null);
-        }
-
+    // gets fix commit refs
+    async getFixCommitRefs(client, repoMeta){
         // list commits since date based on history size 
-        const client = newClient(repoMeta.installation_id);
         var commitRefs = [];
-        client.paginate("GET /repos/:owner/:repo/commits", {
-           owner: repoMeta.owner,  
-           repo: repoMeta.name,
-           sha: this.#trackedBranch,
-           since: this.dateFromHistorySize(this.#historySize), 
-        }).then(commits => {
-            commits.data.forEach(commit => {
-                if (this.#fixCache.isFixMessage(commit.commit.message)){
-                    commitRefs.push(commit.commit.sha);
+        try {
+            const commits = await client.paginate("GET /repos/:owner/:repo/commits", {
+                owner: repoMeta.owner,  
+                repo: repoMeta.name,
+                sha: this.#trackedBranch,
+                since: this.dateFromHistorySize(this.#historySize), 
+            });
+            commits.forEach(commit => {
+                const msg = commit.commit.message;
+                // ignore commits if not fix commits or if merges
+                if (!this.#fixCache.isFixMessage(msg) || msg.includes("Merge pull request")){
+                    return;
                 }
+                commitRefs.push(commit.sha);
             })
-        }).catch(err => {
+            return Promise.resolve(commitRefs);
+        } catch(err) {
             return Promise.reject(err);
-        });
+        }
+    }
 
-        // get files changed in commits
+    // gets files from commit refs
+    async getFilesFromCommitRefs(client, repoMeta, commitRefs){
+        // get files modified/added in commits
         var files = [];
-        commitRefs.forEach(commitRef => {
-            const commit = client.repos.getCommit({
+        for (const commitRef of commitRefs){
+            const commit = await client.repos.getCommit({
                 owner: repoMeta.owner,
                 repo: repoMeta.name,
                 ref: commitRef,
             }); 
-            commit.files.forEach(file => {
+            commit.data.files.forEach(file => {
                 // do nothing if file was deleted or is a skip path 
                 if (this.isSkipPath(file.filename) || file.status === "deleted"){
                     return
                 }
-                files.push(file.filename); 
                 // if status is added or changed
+                files.push(file.filename); 
             })
-        });
-        return this.#fixCache.updateCache(repoMeta.id, files);
+        }
+        return Promise.resolve(files);
+    }
+
+    // initializes cache with files based on previous fix commits
+
+    // TODO: if no previous fix commits present, then initialize
+    //       cache with largest files upto CACHE_SIZE
+    async initCache(repoMeta){
+        const client = newClient(repoMeta.installation_id);
+        const commitRefs = await this.getFixCommitRefs(client, repoMeta); 
+        const files = await this.getFilesFromCommitRefs(client, repoMeta, commitRefs);
+        return this.#fixCache.updateCache(parseInt(repoMeta.key), files);
     }
 
     pushEventHandler(event) {
@@ -195,14 +203,14 @@ class EventHandler{
 
         var files = [];
         event.commits.forEach(commit => {
-            files = files.concat(this.getEntitiesToPush(commit));  
+            files = files.concat(this.getFilesFromCommit(commit));  
         })
         return this.#fixCache.updateCache(event.repository.id, files);
     } 
 
     async pullRequestEventHandler(event){
         // check if pr is opened to be merged to the right branch
-        if (event.action != "opened" || event.pull_request.base.ref !== this.#trackedBranch){
+        if (event.action !== "opened" || event.pull_request.base.ref !== this.#trackedBranch){
             return Promise.resolve(null);
         }
 
@@ -224,17 +232,17 @@ class EventHandler{
             var commentBody = "Following files updated in the PR are present in the fix-cache:";
             
             // paginated
-            client.paginate("GET /repos/:owner/:repo/pulls/:pull_number/files",{
+            const pullRequestFiles = await client.paginate("GET /repos/:owner/:repo/pulls/:pull_number/files",{
                 owner: repoMeta.owner,
                 repo: repoMeta.name,
                 pull_number: event.number,
-            }).then((pullRequestFiles)=> {
-                pullRequestFiles.data.forEach(file => {
-                    if (currentCache[file.filename]){
-                        cacheHit = true;
-                        commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
-                    }
-                });
+            });
+
+            pullRequestFiles.data.forEach(file => {
+                if (currentCache[file.filename]){
+                    cacheHit = true;
+                    commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
+                }
             });
 
             if (cacheHit){
@@ -254,7 +262,6 @@ class EventHandler{
                     labels: [this.#prLabel.name],
                 }) 
             }
-            return Promise.resolve(null);
         } catch(err){
             return Promise.reject(err);
         }

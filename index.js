@@ -6,9 +6,9 @@ const { EventHandler } = require('./event-handler');
 // configuration
 const config = {
     // size of fix cache cache
-    cacheSize: process.env.CACHE_SIZE,
-    // size of commit history to check on installation
-    historySize: process.env.HISTORY_SIZE, 
+    cacheSize: parseInt(process.env.CACHE_SIZE),
+    // size of commit history in days to check on installation
+    historySize: parseInt(process.env.HISTORY_SIZE), 
     // name of branch to track fix merges on
     trackedBranch: process.env.TRACKED_BRANCH,
     // keywords for fix commit messages
