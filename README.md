@@ -11,6 +11,12 @@ The prediction algorithm is executed over the commit history of the project, kee
 - *temporal locality*: if an entity introduced a fault recently, it will tend to introduce other faults soon
 - *spatial locality*: if an entity introduced a fault recently, "nearby" entities will also tend to introduce faults soon
 
+- [Installation](#Installation)
+- [Permissions](#Permissions)
+- [Configuration](#Configuration)
+- [How it works](#How-it-works)
+- [Deploying your own FixCache](#Deploying-your-own-fixCache)
+
 
 ## Installation
 
@@ -36,7 +42,7 @@ The app is subscribed to the following events:
 
 ## Configuration
 
-The app uses an env `.env` file for configuration. A sample config is present is shown in `env.sample`. The config:
+The app (for now) uses a `.env` file for configuration. A sample config is shown in `env.sample`.
 
 ### Github config
 
@@ -54,7 +60,7 @@ The app uses an env `.env` file for configuration. A sample config is present is
 
 ### Default
 
-Following default values are used by default in the app: 
+Following default values are used in the current version of the app: 
 
 - `CACHE_SIZE`: `25` 
 - `HISTORY_SIZE`: `30`
@@ -66,27 +72,27 @@ For now, if this configuration is not suitable for your repositories, you can [d
 
 ## How it works
 
-- FixCache keeps track of bug fix commits pushed to the `tracked-branch` of a repository and maintains a fix-sized cache of file entities related to the bug fix.  
+- FixCache keeps track of bug fix commits pushed to the `tracked-branch` of a repository and maintains a fix-sized cache of file entities related to bug fixes. The bug fix commits are identified by the `fix keywords` provided in the configuration. 
  
-- On pull requests, it fetches the cache and updates the pull requests with information about the files present in the cache if the pull requests updates files present in the cache. 
+- On pull requests, it fetches the cache and updates the pull requests with information about the files present if th pull request updates these files. 
     - it adds a label `Fix Cache` to the pull request.
-    - it adds a comment with information about the files present in the cache and the number of previous cache hits.
+    - it adds a comment with the filenames present in the cache and the respective number of cache hits.
 
 ## Deploying your own fixCache
 
-FixCache is deployed on [Deta micros](https://deta.sh). Follow the following steps to deploy your own FixCache as a github app with custom configuration.
+FixCache is deployed on [Deta micros](https://deta.sh). The following steps show how to deploy your own FixCache as a github app with custom configuration.
 
 ### Clone the repository 
 
-Clone the repository with `git clone https://github.com/aavshr/fixCache.git`.
+- Clone the repository with `git clone https://github.com/aavshr/fixCache.git`.
 
 ### Deploy on Deta
 
-This deployment is for Deta micros. You will need to have signed up for deta and the deta cli installed.
+This deployment is for [Deta micros](https://deta.sh). You will need to have signed up for deta and the deta cli installed.
 
 If you want to deploy on another platform, you will need to modify the code slightly and then set up the respective configuration for deployment to other platforms.    
 
-After you have cloned the repository, change the directory to the cloned directory and enter in your terminal
+- After you have cloned the repository, change the directory to the cloned directory and enter in your terminal
 
 ```shell
 $ deta new
@@ -94,7 +100,7 @@ $ deta new
 
 You should see the output that the application has been created and the dependencies have been installed. 
 
-After installing the app, enter 
+- After installing the app, enter 
 
 ```shell
 $ deta details
@@ -102,19 +108,19 @@ $ deta details
 
 You should see details about your application in your output. The `endpoint` shown will be needed later to add as the webhook url in our github app. 
 
-Lastly disable auth by entering:
+- Lastly disable auth by entering:
 
 ```shell
 $ deta auth disable
 ```
 
-We will use a webhook secret to verify post events are coming from github on our webhook endpoint.
+We will use a webhook secret to verify that the events are coming from github on our webhook endpoint.
 
 ### Create a github app
 
-A comprehensive guide on creating a github app is available [here] (https://docs.github.com/en/developers/apps/building-github-apps). 
+A comprehensive guide on creating a github app is available [here](https://docs.github.com/en/developers/apps/building-github-apps). 
 
-Provide a name (and description if you want). 
+- Go to your *developer settings* (it's under *settings* on the dropdown menu when you click your profile on github) and create a new github app. Provide a name (and description if you want). 
 
 ### Setting up the webhook
 
