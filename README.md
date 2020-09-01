@@ -5,7 +5,7 @@
 - [Permissions](#Permissions)
 - [Configuration](#Configuration)
 - [How it works](#How-it-works)
-- [Deploying your own FixCache](#Deploying-your-own-fixCache)
+- [Deploying your own FixCache](#Deploying-your-own-FixCache)
 
 
 ## Introduction
@@ -14,14 +14,12 @@
 
 It provides code reviewers with information about probable bug introducing files updated in a pull request based on previous commits.
 
-The prediction algorithm is executed over the commit history of the project, keeping track of the most fault-prone error files. The paper assumes four kinds of localities that bug occurences occur in:
+The prediction algorithm is executed over the commit history of the project, keeping track of the most fault-prone files. The paper assumes four kinds of localities that bugs occur in:
 
 - *Changed-entity locality* : if an entity was changed recently, it will tend to introduce faults soon
-- *new-entity locality*: if an entity has been added recently, it will tend to introduce faults soon
-- *temporal locality*: if an entity introduced a fault recently, it will tend to introduce other faults soon
-- *spatial locality*: if an entity introduced a fault recently, "nearby" entities will also tend to introduce faults soon
-
-
+- *New-entity locality*: if an entity has been added recently, it will tend to introduce faults soon
+- *Temporal locality*: if an entity introduced a fault recently, it will tend to introduce other faults soon
+- *Spatial locality*: if an entity introduced a fault recently, "nearby" entities will also tend to introduce faults soon
 
 ## Installation
 
@@ -73,17 +71,17 @@ Following default values are used in the current version of the app:
 - `TRACKED_BRANCH`: `master`
 - `SKIP_PATHS`: `test`
 
-For now, if this configuration is not suitable for your repositories, you can [deploy your own FixCache](#Deploying-your-own-fixCache) with the required configuration. 
+If this configuration is not suitable for your repositories, you can [deploy your own FixCache](#Deploying-your-own-FixCache) with the required configuration. 
 
 ## How it works
 
 - FixCache keeps track of bug fix commits pushed to the `tracked-branch` of a repository and maintains a fix-sized cache of file entities related to bug fixes. The bug fix commits are identified by the `fix keywords` provided in the configuration. 
  
-- On pull requests, it fetches the cache and updates the pull requests with information about the files present if th pull request updates these files. 
+- On pull requests, it fetches the cache and updates the pull requests with information about the files present in the cache if the pull request updates these files. 
     - it adds a label `Fix Cache` to the pull request.
     - it adds a comment with the filenames present in the cache and the respective number of cache hits.
 
-## Deploying your own fixCache
+## Deploying your own FixCache
 
 FixCache is deployed on [Deta micros](https://deta.sh). The following steps show how to deploy your own FixCache as a github app with custom configuration.
 
@@ -131,7 +129,7 @@ A comprehensive guide on creating a github app is available [here](https://docs.
 
 In *Webhook URL*, type the *endpoint* from the output to `deta details`. 
 
-Generate a long secure random string (there are services online that do this) and use that as the *Webhook Secret*. Keep hold of this secret as you will need it to set up the configuration later.
+Generate a long secure random string (there are services online that do this) and use that as the *Webhook Secret*. Keep hold of this secret as you will need it to [set up the configuration](#Configure-the-app) later.
 
 ### Permissions and Events
 
@@ -186,4 +184,4 @@ You should see that the environment variables have been successfully updated.
 
 ### Install
 
-The app should be ready now to accept incoming requests. You can install the app to your repositories in the *Install App* page of your github app.
+The FixCache should be now be deployed completely and ready to function. You can install the app to your repositories in the *Install App* page of your github app.
