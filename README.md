@@ -1,5 +1,15 @@
 # FixCache
 
+- [Introduction](#Introduction)
+- [Installation](#Installation)
+- [Permissions](#Permissions)
+- [Configuration](#Configuration)
+- [How it works](#How-it-works)
+- [Deploying your own FixCache](#Deploying-your-own-fixCache)
+
+
+## Introduction
+
 **FixCache** is a github app implementation of [FixCache](https://people.csail.mit.edu/hunkim/images/3/37/Papers_kim_2007_bugcache.pdf) with git commit history. 
 
 It provides code reviewers with information about probable bug introducing files updated in a pull request based on previous commits.
@@ -11,11 +21,6 @@ The prediction algorithm is executed over the commit history of the project, kee
 - *temporal locality*: if an entity introduced a fault recently, it will tend to introduce other faults soon
 - *spatial locality*: if an entity introduced a fault recently, "nearby" entities will also tend to introduce faults soon
 
-- [Installation](#Installation)
-- [Permissions](#Permissions)
-- [Configuration](#Configuration)
-- [How it works](#How-it-works)
-- [Deploying your own FixCache](#Deploying-your-own-fixCache)
 
 
 ## Installation
