@@ -238,7 +238,7 @@ class EventHandler{
                 pull_number: event.number,
             });
 
-            pullRequestFiles.data.forEach(file => {
+            pullRequestFiles.forEach(file => {
                 if (currentCache[file.filename]){
                     cacheHit = true;
                     commentBody += `\n- \`${file.filename}\` : *${currentCache[file.filename]}* hits`;
