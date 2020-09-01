@@ -31,7 +31,7 @@ class FixCache{
        returns objects with {"file_name": number of hits}
     */
     async getCurrentCache(repoID){
-        const currentCache = this.#fileCache.fetch(({"repo": repoID}, this.#cacheSize)); 
+        const currentCache = this.#fileCache.fetch({"repo": repoID}, this.#cacheSize); 
         var cacheFiles = {};
         for await(const cacheItem of currentCache){
             cacheItem.forEach(item => {
@@ -77,7 +77,7 @@ class FixCache{
                 // early stop if number of files is greater than cache size
                 // TODO: better way of replacing files in this scneario
                 // paper does not discuss a replacement policy in this scenario
-                if (Object.keys(newCache).length == 25){
+                if (Object.keys(newCache).length === 25){
                     return;
                 }
             });
@@ -126,7 +126,7 @@ class FixCache{
                     // early stop if there are no more files to replace but cache is already full
                     // TODO: think of a better way to handle this
                     // paper does not show a replacement policy for this scenario
-                    if (leastHitIndex == 0 && Object.keys(currentCacheLookupTable).length === this.#cacheSize){
+                    if (leastHitIndex === 0 && Object.keys(currentCacheLookupTable).length === this.#cacheSize){
                         return;
                     }
                 }
