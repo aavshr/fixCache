@@ -83,14 +83,14 @@ class EventHandler{
                 };
                 repoItems.push(repoMeta);
                 // create a label in the repo for FixCache
-                client.issues.createLabel({
+                await client.issues.createLabel({
                     owner: owner,
                     repo: repo.name,
                     name: this.#prLabel.name, 
                     color: this.#prLabel.color,
                 })
 
-                this.initCache(repoMeta);
+                await this.initCache(client, repoMeta);
             });
             // add repo meta data information about the repos
             await putItems(repoDB, repoItems);
@@ -188,8 +188,7 @@ class EventHandler{
 
     // TODO: if no previous fix commits present, then initialize
     //       cache with largest files upto CACHE_SIZE
-    async initCache(repoMeta){
-        const client = newClient(repoMeta.installation_id);
+    async initCache(client, repoMeta){
         const commitRefs = await this.getFixCommitRefs(client, repoMeta); 
         const files = await this.getFilesFromCommitRefs(client, repoMeta, commitRefs);
         return this.#fixCache.updateCache(parseInt(repoMeta.key), files);
