@@ -1,7 +1,6 @@
-const { isDetaRuntime } = require('./util.js');
 const { Deta } = require ('deta');
 
-const deta = isDetaRuntime()? Deta(): Deta(process.env.DETA_PROJECT_KEY);
+const deta = Deta(process.env.DETA_PROJECT_KEY);
 
 /*
 repoDB schema:
@@ -46,6 +45,6 @@ const putItems = async (db, items) => {
         }
         start = end;
     }
-}
+};
 
 module.exports = { repoDB, cacheDB, putItems };
