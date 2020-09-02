@@ -34,9 +34,11 @@ class FixCache{
         const currentCache = this.#fileCache.fetch({"repo": repoID}, this.#cacheSize); 
         var cacheFiles = {};
         for await(const cacheItem of currentCache){
-            cacheItem.forEach(item => {
+            console.log("cache items: ", cacheItem);
+            for (const item of cacheItem){
+                console.log("cache item", item); 
                 cacheFiles[item.file] = item.number_of_hits; 
-            });
+            }
         }
         return Promise.resolve(cacheFiles); 
     }
@@ -138,7 +140,12 @@ class FixCache{
         return Promise.resolve(null);
     }
 
-    isFixMessage(message){
+    isFixMessage(message, excludeMerge){
+        // exclude merge commits
+        if (excludeMerge && message.includes("Merge pull request")){
+            return false;
+        }
+
         for (const keyword of this.#fixKeywords){
             if (message.toLowerCase().includes(keyword)){
                 return true;

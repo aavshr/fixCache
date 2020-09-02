@@ -45,6 +45,6 @@ const putItems = async (db, items) => {
         }
         start = end;
     }
-}
+};
 
 module.exports = { repoDB, cacheDB, putItems };

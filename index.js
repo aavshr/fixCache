@@ -1,4 +1,5 @@
 const express = require('express');
+const { newClient } = require('./client');
 
 const { isDetaRuntime, verifySignature } = require('./util');
 const { EventHandler } = require('./event-handler');
@@ -29,7 +30,17 @@ app.use(verifySignature); // verify signature with webhook secret
 
 // webhook main handler
 app.post('/', async (req, res) => {
-    await eventHandler.handleEvent(req);
+    try{
+        await eventHandler.handleEvent(req);
+    } catch (err){
+        console.error(err);
+        return res.status(500).send('internal server error');
+    }
+    return res.send('ok');
+});
+
+// marketplace handler
+app.post('/marketplace', (req, res) => {
     return res.send('ok');
 });
 
