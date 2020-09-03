@@ -81,6 +81,8 @@ If this configuration is not suitable for your repositories, you can [deploy you
     - it adds a label `Fix Cache` to the pull request.
     - it adds a comment with the filenames present in the cache and the respective number of cache hits.
 
+![screenshot](assets/screenshot.png)
+
 ## Deploying your own FixCache
 
 FixCache is deployed on [Deta micros](https://deta.sh). The following steps show how to deploy your own FixCache as a github app with custom configuration.
