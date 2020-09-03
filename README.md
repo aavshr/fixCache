@@ -69,7 +69,7 @@ Following default values are used in the current version of the app:
 - `HISTORY_SIZE`: `30`
 - `FIX_KEY_WORDS`: `fix`
 - `TRACKED_BRANCH`: `master`
-- `SKIP_PATHS`: `test`
+- `SKIP_PATHS`: `test,.md`
 
 If this configuration is not suitable for your repositories, you can [deploy your own FixCache](#Deploying-your-own-FixCache) with the required configuration. 
 
