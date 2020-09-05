@@ -79,8 +79,6 @@ Following default values are used in the current version of the app:
 
 If this configuration is not suitable for your repositories, you can [deploy your own FixCache](#Deploying-your-own-FixCache) with the required configuration. 
 
-## How it works
-
 ## Deploying your own FixCache
 
 FixCache is deployed on [Deta micros](https://deta.sh). The following steps show how to deploy your own FixCache as a github app with custom configuration.
