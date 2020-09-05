@@ -34,7 +34,6 @@ class FixCache{
         const currentCache = this.#fileCache.fetch({"repo": repoID}, this.#cacheSize); 
         var cacheFiles = {};
         for await(const cacheItem of currentCache){
-            console.log("cache items: ", cacheItem);
             for (const item of cacheItem){
                 console.log("cache item", item); 
                 cacheFiles[item.file] = item.number_of_hits; 

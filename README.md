@@ -4,17 +4,23 @@
 - [Installation](#Installation)
 - [Permissions](#Permissions)
 - [Configuration](#Configuration)
-- [How it works](#How-it-works)
 - [Deploying your own FixCache](#Deploying-your-own-FixCache)
-
 
 ## Introduction
 
 **FixCache** is a github app implementation of [FixCache](https://people.csail.mit.edu/hunkim/images/3/37/Papers_kim_2007_bugcache.pdf) with git commit history. 
 
-It provides code reviewers with information about probable bug introducing files updated in a pull request based on previous commits.
+FixCache can be useful for prioritizing verification, validation and testing resources on the most fault-prone files. 
 
-The prediction algorithm is executed over the commit history of the project, keeping track of the most fault-prone files. The paper assumes four kinds of localities that bugs occur in:
+It keeps track of bug fix commits pushed to a [configurable](#Configuration) `tracked branch` of a repository and maintains a fix-sized cache of file entities most prone to bugs. The bug fix commits are identified by the `fix keywords` provided in the [configuration](#Configuration). 
+ 
+On pull requests, it fetches the cache and updates the pull requests with information about the files present in the cache if the pull request updates these files. 
+- it adds a label `fix cache` to the pull request.
+- it adds a comment with the filenames present in the cache and the respective number of cache hits.
+
+![screenshot](assets/screenshot.png)
+
+The algorithm is executed over the commit history of the project. The paper assumes four kinds of localities that bugs occur in:
 
 - *Changed-entity locality* : if an entity was changed recently, it will tend to introduce faults soon
 - *New-entity locality*: if an entity has been added recently, it will tend to introduce faults soon
@@ -72,16 +78,6 @@ Following default values are used in the current version of the app:
 - `SKIP_PATHS`: `test,.md`
 
 If this configuration is not suitable for your repositories, you can [deploy your own FixCache](#Deploying-your-own-FixCache) with the required configuration. 
-
-## How it works
-
-- FixCache keeps track of bug fix commits pushed to the `tracked-branch` of a repository and maintains a fix-sized cache of file entities related to bug fixes. The bug fix commits are identified by the `fix keywords` provided in the configuration. 
- 
-- On pull requests, it fetches the cache and updates the pull requests with information about the files present in the cache if the pull request updates these files. 
-    - it adds a label `Fix Cache` to the pull request.
-    - it adds a comment with the filenames present in the cache and the respective number of cache hits.
-
-![screenshot](assets/screenshot.png)
 
 ## Deploying your own FixCache
 
