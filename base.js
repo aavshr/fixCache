@@ -27,14 +27,14 @@ const cacheDB = deta.Base('cache');
 
 const putItems = async (db, items) => {
     const l = items.length;
-    if (items.length <= 25) {
+    if (items.length <= 24) {
         return db.putMany(items);
     }
-    // putMany op supports only 25 items max 
-    // send in batches of 25 items if more than 25 items 
+    // putMany op supports only 24 items max 
+    // send in batches of 24 items if more than 24 items 
     let start = 0, end = 0;
     while(end != l){
-        end += 25;
+        end += 24;
         if (end > l){
             end = l;
         }
